@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "ai:chat": "node src/ai/cli.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,7 +15,8 @@
   "dependencies": {
     "express": "^4.18.2",
     "dotenv": "^16.0.3",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "mongodb": "^6.8.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"
