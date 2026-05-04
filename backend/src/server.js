@@ -2,11 +2,9 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
-
 const DatabaseService = require('./services/database.service'); 
 const userRoutes = require('./routes/user.routes');
-const partnerRoutes = require('./routes/partners.routes'); 
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 const port = 3000;
@@ -25,7 +23,7 @@ app.use((req, res, next) => {
 
 // --- 2. Routes ---
 app.use('/', userRoutes); 
-app.use('/partners', partnerRoutes);
+app.use('/ai', aiRoutes);
 
 // Test Route
 app.get('/', (req, res) => {

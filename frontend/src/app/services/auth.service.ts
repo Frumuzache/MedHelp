@@ -31,6 +31,15 @@ export class AuthService {
     return this.http.get(url, { headers }); 
   }
 
+  getProfileSnapshot(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.getProfile().subscribe({
+        next: resolve,
+        error: reject
+      });
+    });
+  }
+
   login(credentials: any): Observable<any> {
     // We modify login to start the timer on success
     return new Observable(observer => {

@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
+  imports: [RouterOutlet],
   template: `
-    <h1>Welcome to MDS Project</h1>
-    <p>Your Angular application is running!</p>
+    <router-outlet></router-outlet>
   `,
   styles: []
 })

@@ -2,7 +2,13 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'cniongolo/biomistral';
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'cniongolo/biomistral:latest';
+
+function normalizeModelName(modelName) {
+  if (!modelName) return DEFAULT_MODEL;
+  if (modelName.includes(':')) return modelName;
+  return `${modelName}:latest`;
+}
 
 async function chatWithOllama({
   messages,
@@ -14,7 +20,7 @@ async function chatWithOllama({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model,
+      model: normalizeModelName(model),
       messages,
       temperature,
       top_p: topP,
@@ -28,6 +34,10 @@ async function chatWithOllama({
   }
 
   const data = await response.json();
+  if (data?.error) {
+    throw new Error(`Ollama error: ${data.error}`);
+  }
+
   if (!data?.message?.content) {
     throw new Error('Invalid Ollama response: missing message content');
   }

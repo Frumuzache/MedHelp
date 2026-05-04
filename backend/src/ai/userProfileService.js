@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
 const DatabaseService = require('../services/database.service');
 
-const DEFAULT_COLLECTION = process.env.USERS_COLLECTION || 'users';
+const DEFAULT_COLLECTION = process.env.USERS_COLLECTION || 'Users';
 
 function safeString(value) {
   if (value === null || value === undefined) return '';
