@@ -55,7 +55,7 @@ const AiController = {
         return res.status(400).send({ error: 'Email is required' });
       }
 
-      sessions.delete(email);
+      sessions.delete(getSessionKey(email));
       return res.status(200).json({ message: 'Chat reset' });
     } catch (err) {
       console.error('AI reset failed:', err);

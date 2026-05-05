@@ -2,7 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'cniongolo/biomistral:latest';
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'mistral:latest';
 
 function normalizeModelName(modelName) {
   if (!modelName) return DEFAULT_MODEL;
@@ -13,7 +13,7 @@ function normalizeModelName(modelName) {
 async function chatWithOllama({
   messages,
   model = DEFAULT_MODEL,
-  temperature = 0.2,
+  temperature = 0.1,
   topP = 0.9,
 }) {
   const response = await fetch(`${OLLAMA_URL}/api/chat`, {
