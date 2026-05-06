@@ -1,10 +1,10 @@
 const { chatWithOllama } = require('./ollamaClient');
 const { buildSystemPrompt } = require('./systemPrompt');
 
-const MAX_CONTEXT_MESSAGES = 8;
-const MAX_MEMORY_ITEMS = 8;
+const MAX_CONTEXT_MESSAGES = 7;
+const MAX_MEMORY_ITEMS = 7;
 const MIN_QUESTIONS_BEFORE_DIAGNOSIS = 4;
-const MAX_QUESTIONS_BEFORE_DIAGNOSIS = 8;
+const MAX_QUESTIONS_BEFORE_DIAGNOSIS = 6;
 
 function normalizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -102,24 +102,26 @@ async function medicalAgentTurn(chatState, userInput) {
   addToConversationMemory(chatState, cleanInput);
   chatState.messages.push({ role: 'user', content: cleanInput });
 
-  let reply = await askOllama(chatState);
+  // If we've already reached the maximum allowed questions, inject a
+  // one-off system constraint into the outgoing messages so the model
+  // returns a final diagnosis instead of asking another question.
+  let constraint = null;
+  if (chatState.questionCount >= MAX_QUESTIONS_BEFORE_DIAGNOSIS) {
+    constraint = `You have reached the maximum of ${MAX_QUESTIONS_BEFORE_DIAGNOSIS} questions. Do not ask another question. Provide FINAL DIAGNOSIS now, with a brief safety disclaimer.`;
+  }
+
+  let reply;
+  if (constraint) {
+    const msgs = [
+      ...buildMessages(chatState),
+      { role: 'system', content: constraint },
+    ];
+    reply = await chatWithOllama({ messages: msgs });
+  } else {
+    reply = await askOllama(chatState);
+  }
+
   let isFinal = isFinalResponse(reply);
-
-  if (isFinal && chatState.questionCount < MIN_QUESTIONS_BEFORE_DIAGNOSIS) {
-    reply = await retryWithConstraint(
-      chatState,
-      `You have asked only ${chatState.questionCount} questions so far. Do not provide a diagnosis yet. Ask exactly one new yes/no question and keep the conversation focused on the same complaint.`,
-    );
-    isFinal = isFinalResponse(reply);
-  }
-
-  if (!isFinal && chatState.questionCount >= MAX_QUESTIONS_BEFORE_DIAGNOSIS) {
-    reply = await retryWithConstraint(
-      chatState,
-      `You have reached the maximum of ${MAX_QUESTIONS_BEFORE_DIAGNOSIS} questions. Do not ask another question. Provide FINAL DIAGNOSIS now, with a brief safety disclaimer.`,
-    );
-    isFinal = isFinalResponse(reply);
-  }
 
   chatState.messages.push({ role: 'assistant', content: reply });
   if (chatState.messages.length > MAX_CONTEXT_MESSAGES) {
