@@ -1,0 +1,70 @@
+<div class="partner-container">
+  <header class="partner-header">
+    <h1>Doctor Dashboard</h1>
+    <button class="logout-btn" (click)="logout()">Logout</button>
+  </header>
+
+  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="content-layout">
+    <!-- Left panel: session list -->
+    <aside class="sessions-panel">
+      <h2>Patient Sessions</h2>
+      <p *ngIf="isLoadingSessions">Loading...</p>
+      <p *ngIf="!isLoadingSessions && sessions.length === 0">No completed sessions yet.</p>
+
+      <ul class="session-list">
+        <li
+          *ngFor="let session of sessions"
+          class="session-item"
+          [class.active]="selectedSession?._id === session._id"
+          (click)="selectSession(session)"
+        >
+          <span class="session-email">{{ session.patientEmail }}</span>
+          <span class="session-complaint">{{ session.chiefComplaint || 'N/A' }}</span>
+          <span class="session-date">{{ session.completedAt | date: 'short' }}</span>
+          <span class="summarized-badge" *ngIf="session.summary">Summarized</span>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Right panel: session detail + summary -->
+    <main class="detail-panel" *ngIf="selectedSession">
+      <h2>{{ selectedSession.patientEmail }}</h2>
+      <p class="chief-complaint">Chief complaint: <strong>{{ selectedSession.chiefComplaint }}</strong></p>
+
+      <div class="final-diagnosis">
+        <h3>AI Triage Diagnosis</h3>
+        <p>{{ selectedSession.finalDiagnosis }}</p>
+      </div>
+
+      <button
+        class="generate-btn"
+        (click)="generateSummary()"
+        [disabled]="isLoadingSummary"
+      >
+        {{ isLoadingSummary ? 'Generating...' : (summary ? 'Regenerate Summary' : 'Generate Clinical Summary') }}
+      </button>
+
+      <div class="summary-card" *ngIf="parsedSummary['URGENCY LEVEL']">
+        <div class="urgency-banner" [ngClass]="getUrgencyClass(parsedSummary['URGENCY LEVEL'])">
+          Urgency: {{ parsedSummary['URGENCY LEVEL'] }}
+          <span *ngIf="parsedSummary['EMERGENCY CONSULT RECOMMENDED'] === 'YES'" class="emergency-flag">
+            ⚠ Emergency Consult Recommended
+          </span>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-field" *ngFor="let key of ['CHIEF COMPLAINT','SYMPTOMS REPORTED','SYMPTOMS DENIED','AI TRIAGE ASSESSMENT','MEDICATION SUGGESTIONS','CLINICAL NOTES']">
+            <span class="field-label">{{ key }}</span>
+            <span class="field-value">{{ parsedSummary[key] || '—' }}</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <main class="detail-panel empty" *ngIf="!selectedSession">
+      <p>Select a patient session from the left to view details.</p>
+    </main>
+  </div>
+</div>
