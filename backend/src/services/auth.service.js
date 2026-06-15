@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt'); 
-const DatabaseService = require('../services/database.service'); 
+const bcrypt = require('bcrypt');
+const DatabaseService = require('../services/database.service');
 
 const AuthService = {
 
@@ -10,12 +10,12 @@ const AuthService = {
 
     signJWT: (user) => {
         const secret = process.env.JWT_SECRET_KEY;
-        const payload = { 
-            email: user.email, 
-            _id: user._id, 
-            firstName: user.firstName 
+        const payload = {
+            email: user.email,
+            _id: user._id,
+            firstName: user.firstName,
+            role: user.role || 'patient',
         };
-        // 15 minute expiration
         return jwt.sign(payload, secret, { expiresIn: '15m' });
     },
 
@@ -41,10 +41,10 @@ const AuthService = {
         const collection = await AuthService.getCollection();
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
-        
+
         const userToSave = {
             ...userData,
-            password: hashedPassword 
+            password: hashedPassword
         };
 
         return await collection.insertOne(userToSave);
@@ -59,19 +59,19 @@ const AuthService = {
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer'))
-            return res.status(401).send('Access denied. No token provided'); 
+            return res.status(401).send('Access denied. No token provided');
 
         const token = authHeader.split(' ')[1];
         const secret = process.env.JWT_SECRET_KEY;
 
         jwt.verify(token, secret, (err, user) => {
             if (err)
-                return res.status(403).send("Invalid token"); 
+                return res.status(403).send("Invalid token");
             req.user = user;
             next();
         });
     },
-    
+
 }
 
 module.exports = AuthService;
