@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const { getUserContextByEmail } = require('../ai/userProfileService');
 const { createMedicalChatState, medicalAgentTurn } = require('../ai/medicalAgent');
+const DatabaseService = require('../services/database.service');
 
 const chatSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -27,6 +28,19 @@ async function getOrCreateSession(email) {
   return session;
 }
 
+async function saveCompletedSession(email, chatState, userContext, finalDiagnosis) {
+  const collection = await DatabaseService.goToCollection('Sessions');
+  await collection.insertOne({
+    patientEmail: email,
+    chiefComplaint: chatState.chiefComplaint,
+    messages: chatState.messages,
+    finalDiagnosis,
+    userProfile: userContext,
+    completedAt: new Date().toISOString(),
+    summary: null,
+  });
+}
+
 const AiController = {
   chat: async (req, res) => {
     try {
@@ -37,6 +51,16 @@ const AiController = {
 
       const session = await getOrCreateSession(value.email);
       const result = await medicalAgentTurn(session.chatState, value.message);
+
+      if (result.isFinal) {
+        await saveCompletedSession(
+          value.email,
+          session.chatState,
+          session.userContext,
+          result.reply
+        );
+        sessions.delete(getSessionKey(value.email));
+      }
 
       return res.status(200).json({
         reply: result.reply,
