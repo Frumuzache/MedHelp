@@ -2,6 +2,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
 const DatabaseService = require('../services/database.service');
+const { ObjectId } = require('mongodb');
+const { generateSessionSummary } = require('../ai/summaryAgent');
 
 const PARTNERS_COLLECTION = 'Partners';
 
@@ -84,6 +86,64 @@ const PartnerController = {
     } catch (err) {
       console.error('Partner login failed:', err);
       return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  },
+
+  getSessions: async (req, res) => {
+    try {
+      const collection = await DatabaseService.goToCollection('Sessions');
+      const sessions = await collection
+        .find({}, {
+          projection: {
+            patientEmail: 1,
+            chiefComplaint: 1,
+            completedAt: 1,
+            finalDiagnosis: 1,
+            summary: 1,
+          },
+        })
+        .sort({ completedAt: -1 })
+        .toArray();
+
+      return res.status(200).json({ sessions });
+    } catch (err) {
+      console.error('Get sessions failed:', err);
+      return res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+  },
+
+  summarizeSession: async (req, res) => {
+    try {
+      let sessionId;
+      try {
+        sessionId = new ObjectId(req.params.id);
+      } catch {
+        return res.status(400).json({ error: 'Invalid session ID' });
+      }
+
+      const collection = await DatabaseService.goToCollection('Sessions');
+      const session = await collection.findOne({ _id: sessionId });
+
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      if (session.summary) {
+        return res.status(200).json({ summary: session.summary, cached: true });
+      }
+
+      const summary = await generateSessionSummary({
+        messages: session.messages,
+        userProfile: session.userProfile,
+        finalDiagnosis: session.finalDiagnosis,
+      });
+
+      await collection.updateOne({ _id: sessionId }, { $set: { summary } });
+
+      return res.status(200).json({ summary, cached: false });
+    } catch (err) {
+      console.error('Summarize session failed:', err);
+      return res.status(500).json({ error: 'Failed to generate summary' });
     }
   },
 };
