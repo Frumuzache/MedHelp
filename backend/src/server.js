@@ -5,6 +5,8 @@ const cors = require('cors');
 const DatabaseService = require('./services/database.service'); 
 const userRoutes = require('./routes/user.routes');
 const aiRoutes = require('./routes/ai.routes');
+const partnerRoutes = require('./routes/partner.routes');
+
 
 const app = express();
 const port = 3000;
@@ -24,6 +26,8 @@ app.use((req, res, next) => {
 // --- 2. Routes ---
 app.use('/', userRoutes); 
 app.use('/ai', aiRoutes);
+app.use('/partners', partnerRoutes);
+
 
 // Test Route
 app.get('/', (req, res) => {
