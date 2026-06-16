@@ -41,7 +41,11 @@ class DashboardScreen extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.logout, color: Colors.white),
                     onPressed: () async {
-                      await context.read<ChatProvider>().reset(auth.email!, auth.token!);
+                      final email = auth.email;
+                      final token = auth.token;
+                      if (email != null && token != null) {
+                        await context.read<ChatProvider>().reset(email, token);
+                      }
                       await context.read<AuthProvider>().logout();
                       if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
                     },

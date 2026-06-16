@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../providers/chat_provider.dart';
 
+const _finalDiagnosisPrefix = 'FINAL DIAGNOSIS:';
+
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
@@ -9,7 +11,7 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
-    final isFinalDiagnosis = !isUser && message.text.startsWith('FINAL DIAGNOSIS:');
+    final isFinalDiagnosis = !isUser && message.text.startsWith(_finalDiagnosisPrefix);
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
