@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
+const crypto = require('crypto');
 const DatabaseService = require('../services/database.service');
 const { ObjectId } = require('mongodb');
 const { generateSessionSummary } = require('../ai/summaryAgent');
@@ -30,6 +31,7 @@ function signPartnerJWT(partner) {
     _id: partner._id,
     firstName: partner.firstName,
     role: 'partner',
+    partnerToken: partner.partnerToken,
   };
   return jwt.sign(payload, secret, { expiresIn: '15m' });
 }
@@ -49,14 +51,16 @@ const PartnerController = {
       }
 
       const hashedPassword = await bcrypt.hash(value.password, 10);
+      const partnerToken = crypto.randomBytes(4).toString('hex').toUpperCase();
       await collection.insertOne({
         ...value,
         password: hashedPassword,
         role: 'partner',
+        partnerToken,
         createdAt: new Date().toISOString(),
       });
 
-      return res.status(201).json({ message: 'Partner registered!' });
+      return res.status(201).json({ message: 'Partner registered!', partnerToken });
     } catch (err) {
       console.error('Partner register failed:', err);
       return res.status(500).json({ error: 'Internal Server Error' });
@@ -91,9 +95,10 @@ const PartnerController = {
 
   getSessions: async (req, res) => {
     try {
+      const partnerToken = req.user.partnerToken;
       const collection = await DatabaseService.goToCollection('Sessions');
       const sessions = await collection
-        .find({}, {
+        .find({ partnerToken }, {
           projection: {
             patientEmail: 1,
             chiefComplaint: 1,

@@ -27,7 +27,8 @@ export class RegisterComponent {
     country: '',
     sex: '', // Will map to a select dropdown
     previousConditions: '',
-    familyConditions: ''
+    familyConditions: '',
+    partnerToken: '',
   };
 
   errorMessage: string = '';

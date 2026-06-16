@@ -29,9 +29,13 @@ async function getOrCreateSession(email) {
 }
 
 async function saveCompletedSession(email, chatState, userContext, finalDiagnosis) {
-  const collection = await DatabaseService.goToCollection('Sessions');
-  await collection.insertOne({
+  const sessionsCollection = await DatabaseService.goToCollection('Sessions');
+  const usersCollection = await DatabaseService.goToCollection('Users');
+  const user = await usersCollection.findOne({ email }, { projection: { partnerToken: 1 } });
+
+  await sessionsCollection.insertOne({
     patientEmail: email,
+    partnerToken: user?.partnerToken || null,
     chiefComplaint: chatState.chiefComplaint,
     messages: chatState.messages,
     finalDiagnosis,
