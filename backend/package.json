@@ -7,21 +7,29 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "ai:chat": "node src/ai/cli.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --runInBand"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^16.0.3",
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
-    "mongodb": "^6.8.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
-    "bcrypt": "^5.1.1"
+    "mongodb": "^6.8.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "jest": "^29.7.0",
+    "nodemon": "^2.0.20",
+    "supertest": "^7.2.2"
   }
 }

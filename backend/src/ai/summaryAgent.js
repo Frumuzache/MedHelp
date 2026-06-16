@@ -3,7 +3,7 @@ const { chatWithOllama } = require('./ollamaClient');
 const SUMMARY_SYSTEM_PROMPT = `You are a clinical assistant summarizing a patient AI triage session for a doctor.
 Analyze the conversation transcript and patient profile, then output a structured report in EXACTLY this format with no extra text:
 
-CHIEF COMPLAINT: <one sentence describin<g the main symptom>
+CHIEF COMPLAINT: <one sentence describing the main symptom>
 SYMPTOMS REPORTED: <comma-separated list of symptoms the patient confirmed>
 SYMPTOMS DENIED: <comma-separated list of symptoms the patient denied>
 AI TRIAGE ASSESSMENT: <one short paragraph with the triage conclusion>
@@ -47,4 +47,4 @@ async function generateSessionSummary({ messages, userProfile, finalDiagnosis })
   });
 }
 
-module.exports = { generateSessionSummary };
+module.exports = { generateSessionSummary, buildTranscript };

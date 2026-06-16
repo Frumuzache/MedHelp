@@ -141,4 +141,8 @@ async function medicalAgentTurn(chatState, userInput) {
 module.exports = {
   createMedicalChatState,
   medicalAgentTurn,
+  normalizeText,
+  isFinalResponse,
+  buildConversationMemory,
+  addToConversationMemory,
 };
