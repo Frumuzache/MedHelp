@@ -16,8 +16,9 @@ const registerSchema = Joi.object({
     height: Joi.number().positive().required(),
     country: Joi.string().required(),
     sex: Joi.string().valid('Male', 'Female', 'Other').required(),
-    previousConditions: Joi.string().allow('').optional(), // Allow empty string
-    familyConditions: Joi.string().allow('').optional()    // Allow empty string
+    previousConditions: Joi.string().allow('').optional(),
+    familyConditions: Joi.string().allow('').optional(),
+    partnerToken: Joi.string().allow('').optional(),
 });
 
 const UserController = {

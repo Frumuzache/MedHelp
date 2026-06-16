@@ -142,8 +142,15 @@
       </div>
 
       <div class="form-group">
+        <label for="partnerToken">Partner Token <span style="font-weight:400;color:#888;">(optional — provided by your doctor)</span></label>
+        <input type="text" id="partnerToken" name="partnerToken"
+               [(ngModel)]="user.partnerToken"
+               placeholder="e.g. A1B2C3D4">
+      </div>
+
+      <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" 
+        <input type="password" id="password" name="password"
                [(ngModel)]="user.password" #password="ngModel" required minlength="8"
                [class.invalid]="password.invalid && (password.dirty || password.touched)">
         <div *ngIf="password.invalid && (password.dirty || password.touched)" class="validation-error">

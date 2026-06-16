@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
-import '../widgets/chat_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -16,10 +15,18 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollCtrl = ScrollController();
 
   @override
-  void dispose() {
-    _inputCtrl.dispose();
-    _scrollCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sendWelcome());
+  }
+
+  Future<void> _sendWelcome() async {
+    final chat = context.read<ChatProvider>();
+    final email = context.read<AuthProvider>().profile?['email'] ?? '';
+    if (chat.messages.isEmpty) {
+      await chat.sendMessage(email, 'Hello');
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -38,142 +45,166 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
     _inputCtrl.clear();
-
-    final auth = context.read<AuthProvider>();
-    await context.read<ChatProvider>().sendMessage(
-      auth.email!,
-      text,
-      auth.token!,
-    );
+    final email = context.read<AuthProvider>().profile?['email'] ?? '';
+    await context.read<ChatProvider>().sendMessage(email, text);
     _scrollToBottom();
   }
 
-  Future<void> _reset() async {
-    final auth = context.read<AuthProvider>();
-    await context.read<ChatProvider>().reset(auth.email!, auth.token!);
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatProvider>();
-
-    if (chat.messages.isNotEmpty) _scrollToBottom();
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Triage Chat'),
+        title: const Text('Medical Consultation'),
         backgroundColor: const Color(0xFF0056B3),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'New Session',
-            onPressed: _reset,
+            tooltip: 'New consultation',
+            onPressed: () async {
+              final email =
+                  context.read<AuthProvider>().profile?['email'] ?? '';
+              await context.read<ChatProvider>().reset(email);
+              await _sendWelcome();
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Messages list
-          Expanded(
-            child: chat.messages.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'Describe your symptoms to begin the triage.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: chat.messages.length,
-                    itemBuilder: (_, i) => ChatBubble(message: chat.messages[i]),
-                  ),
-          ),
-
-          // Typing indicator
-          if (chat.isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0056B3)),
-                  ),
-                  SizedBox(width: 10),
-                  Text('AI is thinking...', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-
-          // Error
-          if (chat.error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(chat.error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-            ),
-
-          // Diagnosis complete banner
           if (chat.isFinal)
             Container(
-              width: double.infinity,
-              color: const Color(0xFFD4EDDA),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
+              color: Colors.green.shade50,
+              padding: const EdgeInsets.all(12),
+              child: const Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF155724), size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('Diagnosis complete.', style: TextStyle(color: Color(0xFF155724), fontWeight: FontWeight.w600)),
-                  ),
-                  TextButton(
-                    onPressed: _reset,
-                    child: const Text('New Session'),
-                  ),
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Expanded(
+                      child: Text(
+                    'Consultation complete. Tap refresh to start a new one.',
+                    style: TextStyle(color: Colors.green),
+                  )),
                 ],
               ),
             ),
-
-          // Input bar
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: chat.messages.length,
+              itemBuilder: (context, i) {
+                final msg = chat.messages[i];
+                return _ChatBubble(message: msg);
+              },
+            ),
+          ),
+          if (chat.loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 8),
+                  Text('Thinking...', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          if (chat.error != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(chat.error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ),
           if (!chat.isFinal)
-            SafeArea(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFDDDDDD))),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _inputCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'Type your message...',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        ),
-                        onSubmitted: (_) => _send(),
-                        enabled: !chat.isLoading,
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _inputCtrl,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: InputDecoration(
+                        hintText: 'Describe your symptoms...',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        isDense: true,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      onPressed: chat.isLoading ? null : _send,
-                      icon: const Icon(Icons.send),
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFF0056B3)),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: chat.loading ? null : _send,
+                    style: FilledButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(14),
                     ),
-                  ],
-                ),
+                    child: const Icon(Icons.send),
+                  ),
+                ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  final ChatMessage message;
+
+  const _ChatBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.isUser;
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: BoxDecoration(
+          color: isUser
+              ? const Color(0xFF0056B3)
+              : const Color(0xFFF0F4FF),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isUser ? 16 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 16),
+          ),
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            color: isUser ? Colors.white : Colors.black87,
+            fontSize: 15,
+          ),
+        ),
       ),
     );
   }

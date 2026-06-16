@@ -1,0 +1,57 @@
+<div class="auth-container">
+  <div class="auth-card partner-card">
+    <div class="auth-header">
+      <a routerLink="/partner-login" class="back-link">&larr; Back to Partner Login</a>
+      <div class="partner-badge">Doctor / Partner Portal</div>
+      <h2>Create Partner Account</h2>
+      <p>Register to access patient session summaries</p>
+    </div>
+
+    <!-- Success screen: show the generated partner token -->
+    <div *ngIf="successToken" class="success-screen">
+      <div class="success-icon">✓</div>
+      <h3>Account Created!</h3>
+      <p>Your unique partner token is:</p>
+      <div class="token-box">{{ successToken }}</div>
+      <p class="token-hint">
+        Share this token with your patients when they register so their sessions are linked to you.
+        <strong>Save it now — it won't be shown again.</strong>
+      </p>
+      <button (click)="goToLogin()" class="submit-btn">Go to Login</button>
+    </div>
+
+    <!-- Registration form -->
+    <form *ngIf="!successToken" (ngSubmit)="onSubmit()" #registerForm="ngForm">
+      <div *ngIf="errorMessage" class="error-alert">{{ errorMessage }}</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" name="firstName" [(ngModel)]="partner.firstName" required placeholder="First name">
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" name="lastName" [(ngModel)]="partner.lastName" required placeholder="Last name">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" [(ngModel)]="partner.email" required placeholder="Enter your email">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password <span class="hint">(min. 8 characters)</span></label>
+        <input type="password" id="password" name="password" [(ngModel)]="partner.password" required minlength="8" placeholder="Create a password">
+      </div>
+
+      <button type="submit" [disabled]="!registerForm.form.valid || isLoading" class="submit-btn">
+        {{ isLoading ? 'Creating account...' : 'Create Account' }}
+      </button>
+
+      <p class="auth-footer">
+        Already have an account? <a routerLink="/partner-login">Log in here</a>
+      </p>
+    </form>
+  </div>
+</div>
