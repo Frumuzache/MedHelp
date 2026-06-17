@@ -1,12 +1,33 @@
 const Joi = require('joi');
 const AuthService = require("../services/auth.service");
 
+const validateAge = (value, helpers) => {
+    const dob = new Date(value);
+    const today = new Date();
+    
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+
+    if (age < 14) {
+        return helpers.message('Trebuie să aveți cel puțin 14 ani pentru a vă înregistra.');
+    }
+    if (age > 120) {
+        return helpers.message('Data nașterii introdusă nu este validă (vârstă prea mare).');
+    }
+
+    return value; // Totul e ok, returnăm valoarea
+};
+
 // Validation Schema
 const registerSchema = Joi.object({
     email: Joi.string().email().required(),
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
-    dateOfBirth: Joi.string().isoDate().required(),
+    dateOfBirth: Joi.string().isoDate().custom(validateAge).required(), 
     password: Joi.string().min(8).required(),
     address: Joi.string().required(),
     phoneNumber: Joi.string().pattern(/^[0-9]{10}$/).required(),
