@@ -16,14 +16,15 @@ export class DashboardComponent implements OnInit {
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit() {
-    // Optional: Fetch the user's name from local storage or AuthService
-    // const user = this.authService.getCurrentUser();
-    // if (user) this.userName = user.firstName;
-    
-    // Simple fallback if you store name in localStorage during login
-    const storedName = localStorage.getItem('firstName');
-    if (storedName) this.userName = storedName;
+  // Citim numele salvat în browser la login din token
+  const storedName = localStorage.getItem('firstName');
+  
+  if (storedName) {
+    this.userName = storedName;
+  } else {
+    this.userName = 'Pacient'; // Fallback în caz că nu e găsit
   }
+}
 
   logout() {
     this.authService.logout(); // Make sure your auth service has a logout method

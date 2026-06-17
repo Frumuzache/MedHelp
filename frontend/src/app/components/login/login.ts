@@ -16,12 +16,12 @@ export class LoginComponent {
     email: '',
     password: ''
   };
-  
+
   errorMessage: string = '';
   isLoading: boolean = false;
 
   // 2. Inject Router in the constructor
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router) { }
 
   onSubmit() {
     this.isLoading = true;
@@ -30,26 +30,37 @@ export class LoginComponent {
     this.authService.login(this.credentials).subscribe({
       next: (response: any) => {
         this.isLoading = false;
-        
+
         // --- CRITICAL STEP START ---
-        
-        // 1. Debug: Check exactly what the backend sent
+
         console.log('Backend Response:', response);
 
-        // 2. Extract the token (Check your console log if 'token' is the wrong name!)
         const token = response.token || response.accessToken || response.jwt;
 
         if (token) {
-           // 3. Save the token
-           localStorage.setItem('token', token);
-           
-           // 4. Navigate to Chat
-           console.log('Navigating to chat...');
-           this.router.navigate(['/dashboard']); 
+          // 1. Salvăm token-ul normal
+          localStorage.setItem('token', token);
+
+          try {
+            // 2. TRUCUL: Decodăm partea de mijloc a token-ului JWT (payload-ul) direct în browser
+            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            console.log('Decoded Payload:', tokenPayload);
+
+            // 3. Extragem firstName din payload și îl salvăm în localStorage
+            if (tokenPayload && tokenPayload.firstName) {
+              localStorage.setItem('firstName', tokenPayload.firstName);
+            }
+          } catch (e) {
+            console.error('Nu s-a putut decoda token-ul pentru nume:', e);
+          }
+
+          // 4. Navigăm la dashboard
+          console.log('Navigating to dashboard...');
+          this.router.navigate(['/dashboard']);
         } else {
-           this.errorMessage = 'Login successful, but no token received.';
+          this.errorMessage = 'Login successful, but no token received.';
         }
-        
+
         // --- CRITICAL STEP END ---
       },
       error: (error) => {
