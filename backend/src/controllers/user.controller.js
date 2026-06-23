@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const AuthService = require("../services/auth.service");
+const DatabaseService = require('../services/database.service');
 
 const validateAge = (value, helpers) => {
     const dob = new Date(value);
@@ -150,6 +151,32 @@ getUserProfile: async (req, res) => {
         } catch (err) {
             console.error("❌ CRASH REPORT:", err);
             res.status(500).send({ error: 'Internal Server Error' });
+        }
+    },
+
+    // --- 4. Get own completed triage sessions (patient history) ---
+    getSessions: async (req, res) => {
+        try {
+            const email = req.user?.email;
+            if (!email) return res.status(401).send({ error: 'Invalid token' });
+
+            const collection = await DatabaseService.goToCollection('Sessions');
+            const sessions = await collection
+                .find({ patientEmail: email }, {
+                    projection: {
+                        chiefComplaint: 1,
+                        completedAt: 1,
+                        finalDiagnosis: 1,
+                        summary: 1,
+                    },
+                })
+                .sort({ completedAt: -1 })
+                .toArray();
+
+            return res.status(200).json({ sessions });
+        } catch (err) {
+            console.error('Get sessions failed:', err);
+            res.status(500).send({ error: 'Failed to fetch sessions' });
         }
     }
 }

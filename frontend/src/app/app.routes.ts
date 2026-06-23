@@ -7,6 +7,9 @@ import { ChatComponent } from './components/chat/chat';
 import { PartnerDashboardComponent } from './components/partner-dashboard/partner-dashboard';
 import { PartnerLoginComponent } from './components/partner-login/partner-login';
 import { PartnerRegisterComponent } from './components/partner-register/partner-register';
+import { AboutComponent } from './components/about/about';
+import { HistoryComponent } from './components/history/history';
+import { ProfileComponent } from './components/profile/profile';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },
@@ -15,6 +18,9 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'chat', component: ChatComponent },
+  { path: 'about', component: AboutComponent },
+  { path: 'history', component: HistoryComponent },
+  { path: 'profile', component: ProfileComponent },
   { path: 'partner-login', component: PartnerLoginComponent },
   { path: 'partner-register', component: PartnerRegisterComponent },
   { path: 'partner-dashboard', component: PartnerDashboardComponent },

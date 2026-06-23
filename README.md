@@ -5,7 +5,7 @@ Acest document centralizează toate artefactele cerute pentru proiect: confirmar
 ## Cuprins
 
 - [Arhitectură și diagrame](#arhitectură-și-diagrame)
-  - Componente principale, fluxul de autentificare, fluxul de triaj AI, fluxul partener/sumarizare, structura bazei de date
+  - Componente principale, fluxul de autentificare, fluxul de triaj AI, fluxul partener/sumarizare, fluxul de istoric al pacientului, structura bazei de date, pagini frontend, aplicația mobilă
 - [Specificații și backlog](#specificații-și-backlog)
 - [Teste, Git și proces de dezvoltare](#teste-git-și-proces-de-dezvoltare)
 - [Design patterns folosite](#design-patterns-folosite)
@@ -19,9 +19,9 @@ Acest document centralizează toate artefactele cerute pentru proiect: confirmar
 
 ### Context general
 
-MedHelp este o aplicație full-stack cu 3 straturi principale:
+MedHelp este o aplicație full-stack cu 3 straturi principale, expuse prin doi clienți (web și mobil):
 
-- frontend Angular pentru interfața utilizatorului
+- frontend Angular (web) și aplicație Flutter (mobil) pentru interfața utilizatorului
 - backend Node.js + Express pentru logică și integrare
 - MongoDB + Ollama pentru date și inferență AI
 
@@ -30,13 +30,16 @@ MedHelp este o aplicație full-stack cu 3 straturi principale:
 ```mermaid
 flowchart LR
   User[Utilizator pacient] --> FE[Frontend Angular]
+  User --> MOB[Aplicație mobilă Flutter]
   Partner[Partener / medic] --> FE
   FE -->|HTTP, port 4200 → 3000| API[Backend Express]
+  MOB -->|HTTP, REST| API
   API --> USERS[User Controller]
   API --> AI[AI Controller]
   API --> PCTRL[Partner Controller]
   USERS --> AUTH[Auth Service]
   AUTH --> DB[(MongoDB)]
+  USERS -->|GET /sessions, istoric pacient| DB
   AI --> PROFILE[User Profile Service]
   AI --> MED[Medical Agent]
   MED --> OLLAMA[Ollama local]
@@ -47,7 +50,7 @@ flowchart LR
   SUM --> OLLAMA
 ```
 
-Citire: pacientul și partenerul folosesc același frontend Angular, dar ajung la controllere diferite în backend. `User Controller` gestionează login/register/profil pentru pacienți, `AI Controller` gestionează conversația de triaj și salvează sesiunea finalizată în MongoDB, iar `Partner Controller` autentifică partenerii, le listează sesiunile asociate și declanșează `Summary Agent` (care apelează tot Ollama, dar cu un prompt diferit, orientat spre rezumat clinic) pentru a genera raportul pentru medic.
+Citire: pacientul poate folosi fie frontend-ul Angular, fie aplicația mobilă Flutter — ambele sunt clienți REST pentru același backend Express și nu comunică direct cu MongoDB sau Ollama. Partenerul folosește exclusiv frontend-ul Angular. `User Controller` gestionează login/register/profil pentru pacienți, `AI Controller` gestionează conversația de triaj și salvează sesiunea finalizată în MongoDB, iar `Partner Controller` autentifică partenerii, le listează sesiunile asociate și declanșează `Summary Agent` (care apelează tot Ollama, dar cu un prompt diferit, orientat spre rezumat clinic) pentru a genera raportul pentru medic.
 
 ### Fluxul de autentificare
 
@@ -135,6 +138,26 @@ sequenceDiagram
 
 Citire: un pacient se "leagă" de un partener prin câmpul opțional `partnerToken` completat la înregistrare — acel token este copiat pe sesiunea salvată în `Sessions` când triajul se termină. Partenerul vede doar sesiunile care au `partnerToken`-ul lui, iar rezumatul clinic este generat o singură dată per sesiune (este pus în cache în document, ca să nu se reapeleze Ollama la fiecare vizualizare).
 
+### Fluxul de istoric al pacientului
+
+```mermaid
+sequenceDiagram
+  participant U as Utilizator
+  participant F as Angular Frontend (HistoryComponent)
+  participant B as User Controller
+  participant D as MongoDB
+
+  U->>F: deschide pagina /history
+  F->>B: GET /sessions (Authorization: Bearer)
+  B->>B: decodează JWT-ul -> email
+  B->>D: caută în Sessions după patientEmail
+  D-->>B: lista sesiunilor finalizate ale pacientului
+  B-->>F: sessions (chiefComplaint, finalDiagnosis, summary, completedAt)
+  F->>F: sortează descrescător după completedAt și randează cardurile
+```
+
+Citire: pacientul își vede propriul istoric de triaj prin ruta `GET /sessions`, protejată de același middleware `AuthService.validateJWT` folosit și pentru profil. Ruta filtrează colecția `Sessions` după `patientEmail` (extras din JWT, nu din query/body, pentru ca un pacient să nu poată citi sesiunile altcuiva) și returnează `chiefComplaint`, `finalDiagnosis` (textul brut generat de `Medical Agent`), `summary` (dacă partenerul a generat deja unul) și `completedAt`. Anterior, `HistoryComponent` citea un câmp `previous_conversations` de pe `Users`, care nu era populat niciodată de backend — istoricul afișat era mereu vid; fluxul de mai sus înlocuiește acea sursă de date inexistentă.
+
 ### Structura bazei de date
 
 Baza de date are trei colecții relevante: `Users` (pacienți), `Partners` (medici/parteneri) și `Sessions` (conversațiile de triaj finalizate). O sesiune apartine unui pacient (`patientEmail`) și, opțional, unui partener (`partnerToken`), dacă pacientul s-a înregistrat cu un token de partener.
@@ -185,9 +208,56 @@ erDiagram
   PARTNERS ||--o{ SESSIONS : "vede (partnerToken)"
 ```
 
+### Pagini frontend (Angular)
+
+| Rută | Componentă | Scop |
+|---|---|---|
+| `/home` | `HomeComponent` | pagina de prezentare, linkuri spre login/register/about |
+| `/login`, `/register` | `LoginComponent`, `RegisterComponent` | autentificare/înregistrare pacient |
+| `/dashboard` | `DashboardComponent` | hub-ul pacientului, carduri spre chat, istoric, profil |
+| `/chat` | `ChatComponent` | conversația de triaj AI |
+| `/about` | `AboutComponent` | misiune și valori, pagină statică |
+| `/history` | `HistoryComponent` | istoricul sesiunilor de triaj ale pacientului ([vezi fluxul](#fluxul-de-istoric-al-pacientului)) |
+| `/profile` | `ProfileComponent` | datele de profil ale pacientului |
+| `/partner-login`, `/partner-register`, `/partner-dashboard` | componentele `Partner*` | fluxul dedicat partenerilor |
+
+`AboutComponent`, `HistoryComponent` și `ProfileComponent` existau ca fișiere în `components/`, dar nu erau înregistrate în `app.routes.ts` — cardurile din dashboard care trimiteau spre `/history` și `/profile` rezolvau pe ruta wildcard (`**`) și redirecționau către `/home`. Rutele au fost adăugate, deci paginile sunt acum accesibile.
+
+### Aplicația mobilă (Flutter)
+
+`medhelp_mobile` este un client Flutter separat, dedicat exclusiv pacienților (nu implementează fluxul de partener). Consumă același API REST ca frontend-ul Angular, fără alt backend sau bază de date proprie.
+
+```mermaid
+flowchart TB
+  subgraph medhelp_mobile
+    LOGIN[login_screen.dart]
+    REGISTER[register_screen.dart]
+    DASH[dashboard_screen.dart]
+    CHAT[chat_screen.dart]
+    AP[AuthProvider]
+    CP[ChatProvider]
+    API[api_service.dart]
+  end
+  LOGIN --> AP
+  REGISTER --> AP
+  DASH --> AP
+  CHAT --> CP
+  AP --> API
+  CP --> API
+  API -->|HTTP, JWT Bearer| BACKEND[Backend Express]
+```
+
+Citire: ecranele (`login_screen`, `register_screen`, `dashboard_screen`, `chat_screen`) nu apelează direct rețeaua — folosesc `AuthProvider` și `ChatProvider` (state management cu pachetul `provider`), care la rândul lor delegă către `api_service.dart`. Acesta expune metode statice (`login`, `register`, `getProfile`, `chat`, `resetChat`) care corespund 1:1 rutelor `/login`, `/register`, `/profile`, `/ai/chat` și `/ai/reset` din backend, folosind același JWT obținut la autentificare. Token-ul este persistat local cu `shared_preferences`, astfel încât sesiunea pacientului rămâne activă între porniri ale aplicației.
+
+Observații:
+
+- adresa backend-ului este configurată în `api_service.dart` (`10.0.2.2` pentru emulatorul Android, `127.0.0.1` pentru simulatorul iOS, IP-ul local pentru un dispozitiv real)
+- erorile HTTP (status ≥ 400) sunt transformate în `ApiException`, afișate direct în UI
+- aplicația mobilă nu are acces la funcționalitatea de partener/sumarizare — aceasta rămâne exclusiv în frontend-ul Angular
+
 ### Observații tehnice
 
-- frontend-ul nu vorbește direct cu MongoDB sau Ollama; trece mereu prin backend
+- frontend-ul Angular și aplicația mobilă Flutter nu vorbesc direct cu MongoDB sau Ollama; trec mereu prin backend
 - sesiunea de chat activă este ținută în memorie pe backend (`Map` indexat după email normalizat), nu în baza de date
 - la final de conversație (`FINAL DIAGNOSIS:`), sesiunea este salvată în colecția `Sessions` și scoasă din memorie
 - `Summary Agent` este apelat de `Partner Controller`, nu de `AI Controller` — sumarizarea se face la cererea partenerului, nu automat la finalul triajului
@@ -195,7 +265,7 @@ erDiagram
 
 ---
 
-## Specificații și backlog
+## Specificații 
 
 ### Scopul produsului
 
@@ -223,28 +293,6 @@ MedHelp ajută utilizatorul să își descrie simptomele într-un chat ghidat, i
 - partenerul poate vedea sesiunile finalizate
 - partenerul poate cere sumarizarea unei sesiuni
 
-### Cerințe nefuncționale
-
-- răspunsuri rapide pentru fluxul de chat
-- separare clară între frontend, backend și AI
-- validare de input pe backend
-- arhitectură ușor de extins pentru alte tipuri de profiluri și rapoarte
-- utilizare responsabilă a AI, cu mesaje orientative și disclaimer
-
-### Backlog propus
-
-| Prioritate | Item | Status |
-|---|---|---|
-| P1 | login/register utilizator | realizat |
-| P1 | profil medical în MongoDB | realizat |
-| P1 | chat de triaj cu AI | realizat |
-| P1 | partener login și dashboard | realizat |
-| P1 | sumarizare sesiune pentru medic | realizat |
-| P2 | persistarea completă a istoricului chat | de făcut |
-| P2 | salvarea structurată a rapoartelor clinice | de făcut |
-| P2 | filtre și căutare pentru sesiunile partenerului | de făcut |
-| P3 | notificări și alerte pentru cazuri urgente | de făcut |
-| P3 | rapoarte statistice pe utilizatori/sesiuni | de făcut |
 
 ### User stories
 
@@ -278,11 +326,16 @@ O funcționalitate este considerată gata dacă:
 
 - teste Angular pentru componentele principale
 
+#### Mobile
+
+- test widget Flutter (`medhelp_mobile/test/widget_test.dart`) pentru pornirea aplicației
+
 ### Cum este organizată testarea
 
 - testele backend validează răspunsurile HTTP și tratamentul erorilor
 - testele AI verifică logica de construcție a răspunsului și a rezumatului
-- testele frontend verifică inițializarea componentelor și interacțiunile de bază
+- testele frontend (Angular) verifică inițializarea componentelor și interacțiunile de bază
+- testele mobile (Flutter) verifică pornirea și randarea ecranelor de bază
 
 ### Proces Git recomandat
 
@@ -350,6 +403,12 @@ Frontend-ul folosește servicii separate pentru auth, chat și AI.
 
 Avantaj: componentele rămân subțiri și ușor de reutilizat.
 
+### 8. Observer/Provider pentru state management în Flutter
+
+Aplicația mobilă folosește `ChangeNotifierProvider` (`AuthProvider`, `ChatProvider`) pentru a expune starea de autentificare și de chat ecranelor, fără a o pasa manual prin constructori.
+
+Avantaj: ecranele se reconstruiesc automat la schimbarea stării, iar logica de rețea rămâne izolată în `api_service.dart`.
+
 ---
 
 ## Șabloane pentru bug report și pull request
@@ -403,17 +462,12 @@ Ce modifică PR-ul și de ce.
 - teste rulate
 - scenarii verificate manual
 
-#### Checklist
-
-- [ ] codul este formatat
-- [ ] testele relevante trec
-- [ ] documentația este actualizată
-- [ ] nu există regressions cunoscute
 
 ---
 
 ## Cum folosesc aceste fișiere
 
-- pentru prezentare: pornește din [Arhitectură și diagrame](#arhitectură-și-diagrame)
+- pentru prezentare: pornește din [Arhitectură și diagrame](#arhitectură-și-diagrame), inclusiv secțiunile dedicate paginilor frontend și aplicației mobile
 - pentru evaluare tehnică: consultă [Specificații și backlog](#specificații-și-backlog), [Teste, Git și proces de dezvoltare](#teste-git-și-proces-de-dezvoltare) și [ai-usage-report.md](ai-usage-report.md)
 - pentru implementare și mentenanță: folosește [șabloanele](#șabloane-pentru-bug-report-și-pull-request) de mai sus
+- pentru rularea aplicației mobile: vezi [medhelp_mobile/README.md](medhelp_mobile/README.md)
